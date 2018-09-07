@@ -1,7 +1,7 @@
 // The footer of the application
 
 import React from 'react';
-import { View, Text, Image, StatusBar, StyleSheet } from 'react-native';
+import { View, Text, Image, StatusBar, StyleSheet, Platform } from 'react-native';
 
 
 const Header = () => (
@@ -20,7 +20,7 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        height: '8%',
+        height: Platform.OS == 'ios' ? '12%' : '8%',
         marginTop: StatusBar.currentHeight,
         paddingRight: 5,
         paddingLeft: 5,
@@ -41,11 +41,13 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'flex-end',
         alignItems: 'center',
+        marginTop: Platform.OS == 'ios' ? 40 : 0,
     },
     header__containerLeft: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
+        marginTop: Platform.OS == 'ios' ? 40 : 0,
     }
 });
 

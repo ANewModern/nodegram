@@ -2,7 +2,7 @@
 // The state of the buttons will be managed by Redux
 
 import React, { Component } from 'react'
-import { Alert, View, TouchableHighlight, Image, StyleSheet } from 'react-native';
+import { Alert, View, TouchableHighlight, Image, StyleSheet, Platform } from 'react-native';
 
 export default class Footer extends Component {
     constructor(props) {
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     footer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        height: '8%',
+        height: Platform.OS == 'ios' ? '10%' : '8%',
         backgroundColor: 'whitesmoke',
         zIndex: 2,
     },
@@ -111,13 +111,18 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'green',
+        paddingBottom: Platform.OS == 'ios' ? 25 : 0,
     },
     footer__container__highlight: {
         flex: 1,
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'blue',
+        backgroundColor: 'rgba(0, 0, 0, 0.15)',
+        paddingBottom: Platform.OS == 'ios' ? 25 : 0,
+    },
+    Image: {
+        color: 'white',
     }
+
 });
