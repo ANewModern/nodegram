@@ -121,8 +121,4 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0, 0, 0, 0.15)',
         paddingBottom: Platform.OS == 'ios' ? 25 : 0,
     },
-    Image: {
-        color: 'white',
-    }
-
 });
