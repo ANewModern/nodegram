@@ -41,7 +41,8 @@ export default class Footer extends Component {
             notificationsActive: false,
             profileActive: false
         });
-    } 
+    }
+
     _onNotificationsPress = () => {
         this.setState({ 
             homeActive: false,
@@ -75,6 +76,7 @@ export default class Footer extends Component {
                 >
                     <Image source={require('../images/messages.png')} />
                 </TouchableHighlight>
+                
                 <TouchableHighlight 
                     style={this.state.postActive ? styles.footer__container__highlight : styles.footer__container} 
                     onPress={this._onPostPress}
@@ -94,7 +96,7 @@ export default class Footer extends Component {
                     <Image source={require('../images/profile.png')} />
                 </TouchableHighlight>
             </View>
-        );
+        ); 
     }
 }
 
