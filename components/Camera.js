@@ -1,149 +1,189 @@
-import React, { Component } from 'react';
+import React from 'react';
 import { 
-    Alert, 
-    Slider, 
     Platform, 
-    Text, 
     View, 
     TouchableOpacity, 
     StyleSheet, 
-    ScrollView,
     StatusBar,
     Image,
-    CameraRoll
+    CameraRoll,
 } from 'react-native';
 import { 
     Camera, 
     Permissions, 
-    FileSystem, 
-    MediaLibrary, 
-    Constants 
+    ImageManipulator,
+    ImagePicker
 } from 'expo';
 
 import {
-    Octicons,
     Ionicons,
-    Foundation,
-    MaterialIcons,
-    wbIcons
 } from '@expo/vector-icons';
-
-const flashModeOrder = {
-    auto: 'auto',
-    on: 'on',
-    off: 'off'
-};
-const flashIcons = {
-    auto: 'flash-auto',
-    on: 'flash-on',
-    off: 'flash-off'
-};
-
+/*  TO-DO: 
+    1. Make a function that returns base64/uri from Camera or Photo Library for further Canvas/Image manipulation
+    2. Tidy up the code
+    3. Make it closeable (un-mountable/mountable) at a runtime
+    4. Error handling
+    5. More features?
+*/ 
 export class CameraView extends React.Component {
     constructor() {
         super();
         this.state = {
-        flash: 'auto',
-        zoom: 0,
-        autoFocus: 'on',
-        type: 'back',
-        whiteBalance: 'auto',
-        ratio: '1:1',
-        pictureSize: undefined,
-        permissionCamera: false,
-        permissionGallery: false,
+            flash: Camera.Constants.FlashMode.on,
+            flashColor: "yellow",
+            zoom: 0,
+            autoFocus: Camera.Constants.Type.autoFocus,
+            type: Camera.Constants.Type.back,
+            whiteBalance: 'auto',
+            ratio: '16:9',
+            pictureSize: undefined,
+            permissionCamera: false,
+            permissionGallery: false,
+            photoImg: undefined,
         };
     }
+    __toggleCamera = () => {
+        this.setState({
+            type: this.state.type === Camera.Constants.Type.back
+            ? Camera.Constants.Type.front
+            : Camera.Constants.Type.back,
+        })
+    };
+    __toggleFlashMode = () => {
+        this.setState({ 
+            flash: this.state.flash === Camera.Constants.FlashMode.on
+            ? Camera.Constants.FlashMode.off 
+            : Camera.Constants.FlashMode.on,
+            flashColor: this.state.flash === Camera.Constants.FlashMode.on
+            ? "white"
+            : "yellow",
+        })};
+    __pickImage = async () => {
+        let result = this.state.permissionGallery === false
+            ? Permissions.askAsync(Permissions.CAMERA_ROLL).then( () => this.state.permissionGallery = true)
+            : await ImagePicker.launchImageLibraryAsync({
+                allowsEditing: true,
+                aspect: [1, 1],
+                mediaTypes: 'Images',
+            })
+    };
+    __takePicture = async () => {
+        if (this.camera) {
+            let photo = await this.camera.takePictureAsync( { 
+                quality: 1,
+                base64: true,
+                exif: true,
+                })
+            photo = await this.fixRotation(photo);
+            await this.savePicture(photo);
+        }
+    };
+    __closeCameraView = () => {
+        ;//to-do!
+    };
     async componentWillMount() {
         const { status } = await Permissions.askAsync(Permissions.CAMERA);
         this.setState( { permissionCamera: status === 'granted'});
     }
-    
-    toggleView = () => this.setState({ showGallery: !this.state.showGallery});
-    render() {
-        return (
-            <View style={{
-                
-                flex: 1,
-                flexDirection: 'column' }}>
-                {this.renderTopBar()}
-                <Image source="" />
-                <Camera 
-                ref={ref => {
-                    this.camera = ref;
-                    }}
-                style={{ 
-                    flex: 1,
-                    width: '100%',
-                    height: '50%',
-                }}
-                type={this.state.type}
-                flashMode={this.state.flashMode}
-                zoom={this.state.zoom}
-                autoFocus={this.state.autoFocus}
-                whiteBalance={this.state.whiteBalance}
-                ratio={this.state.ratio}
-                pictureSize={this.state.pictureSize}
-                onMountError={this.handleMountError} 
-                >
-                </Camera>
-                
-                {this.renderBottomBar()}
-            </View>
-        );
-    }
-
-    takePicture = () => {
-        if (this.camera) {
-            this.camera.takePictureAsync( { 
-                quality: 1,
-                base64: false, //maybe later set it to true to display it in Image?
-                exif: true,
-            }).then(this.savePicture);
-        }
+    fixRotation = async (photo) => await ImageManipulator.manipulate(photo.uri,
+        [{
+            rotate: -photo.exif.Orientation //This fixes rotation issue on my iPhone
+        }, {
+            resize: {
+                width: photo.width,
+                height: photo.height
+            }
+        }, {  
+            crop: {
+            originX: 0,
+            originY: photo.height / 9,
+            width: photo.width,
+            height: photo.width
+            }
+        }], {
+            compress: 1,
+            format: 'jpeg',
+    });
+    setPermissions = async () => {
+        const { status } = await Permissions.askAsync(Permissions.CAMERA_ROLL);
+        this.setState({
+            permissionGallery: status === 'granted'
+        })
     };
     savePicture = async (photo) => {
         await CameraRoll.saveToCameraRoll(photo.uri);
+        this.setState({
+            photoImg: photo.uri
+        })
     };
-    renderBottomBar = () =>
-        <View
-        style={styles.bottomBar}>
-        <TouchableOpacity>
-            <Text>...</Text>
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-            <TouchableOpacity
-            onPress={this.takePicture}
-            style={{ alignSelf: 'center' }}
-            >
-            <Text> Snap </Text>
-            </TouchableOpacity>
-        </View> 
-        <TouchableOpacity>
-            <Text>Previews</Text>
-        </TouchableOpacity>
-        </View>
-
-    renderTopBar = () => 
+    renderTopBar = () => (
         <View
         style={styles.topBar}>
-        <TouchableOpacity>
-            <Text>Change camera</Text>
+        <TouchableOpacity onPress={this.__closeCameraView}>
+            <Ionicons name="ios-close" size={40} color="white" />
         </TouchableOpacity>
-        <TouchableOpacity>
-            <Text>Flash</Text>
-        </TouchableOpacity>
-        <TouchableOpacity >
-            <Text>AF</Text>
-        </TouchableOpacity>   
+        <TouchableOpacity
+            onPress={this.__toggleFlashMode}>
+            <Ionicons name="ios-flash" size={40} color={this.state.flashColor} />
+        </TouchableOpacity>  
         </View>
-
+    );
+    renderBottomBar = () => (
+        <View
+        style={styles.bottomBar}>
+            <TouchableOpacity onPress={this.__pickImage}>
+                <Ionicons name="ios-apps" size={48} color="white" />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+                <TouchableOpacity
+                onPress={this.__takePicture}
+                style={{ alignSelf: 'center' }}
+                >
+                    <Ionicons name="ios-radio-button-on" size={86} color="white" />
+                </TouchableOpacity>
+            </View> 
+            <TouchableOpacity
+                onPress={ this.__toggleCamera }>
+                <Ionicons name="ios-reverse-camera" size={48} color="white" />
+            </TouchableOpacity>
+        </View>
+    );
+    render() {
+        return (
+            <View style={{
+                flex: 1,
+                flexDirection: 'column',
+            }}>
+                {this.renderTopBar()}
+                <View style={{
+                    flex: 1,
+                    flexDirection: 'row',
+                }}>
+                    <Camera 
+                    ref={ref => {
+                        this.camera = ref;
+                        }}
+                    style={{
+                        flex: 1,
+                    }}
+                    type={this.state.type}
+                    flashMode={this.state.flash}
+                    zoom={this.state.zoom}
+                    autoFocus={this.state.autoFocus}
+                    whiteBalance={this.state.whiteBalance}
+                    ratio={this.state.ratio}
+                    onMountError={this.handleMountError}
+                    onCameraReady={this.setPermissions}
+                    pictureSize={this.state.pictureSize}
+                    />
+                </View>
+                {this.renderBottomBar()}
+             </View>
+            );
+    }
 }
+
 const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: '#000',
-    },
     camera: {
       flex: 1,
       justifyContent: 'space-between',
@@ -151,22 +191,21 @@ const styles = StyleSheet.create({
     topBar: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        height: Platform.OS == 'ios' ? '25%' : '21%',
+        height: Platform.OS == 'ios' ? '12%' : '8%',
         marginTop: StatusBar.currentHeight,
-        paddingRight: 5,
-        paddingLeft: 5,
-        backgroundColor: 'whitesmoke',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.8,
-        shadowRadius: 2,
-        zIndex: 2,
+        alignItems: 'flex-end',
+        paddingRight: 15,
+        paddingBottom: 10,
+        paddingLeft: 15,
+        backgroundColor: 'black',
     },
     bottomBar: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        height: Platform.OS == 'ios' ? '25%' : '23%',
-        backgroundColor: 'whitesmoke',
-        zIndex: 2,
-    }
+        alignItems: 'center',
+        height: Platform.OS == 'ios' ? '23%' : '21%',
+        backgroundColor: 'black',
+        paddingLeft: 15,
+        paddingRight: 15,
+    },
   });

@@ -4,10 +4,11 @@ import React from 'react';
 // import { Image } from 'react-native';
 import { View } from 'react-native';
 import Dashboard from './components/Dashboard';
+import { CameraView } from './components/Camera';
 
 const App = () => (
   <View style={{ flex: 1 }}>
-    <Dashboard />
+    <CameraView />
   </View>
 );
 
