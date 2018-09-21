@@ -1,6 +1,6 @@
 import React from 'react';
-import { 
-    Platform, 
+import {
+    Text,
     View, 
     TouchableOpacity, 
     StyleSheet, 
@@ -19,11 +19,10 @@ import {
     Ionicons,
 } from '@expo/vector-icons';
 /*  TO-DO: 
-    1. Make a function that returns base64/uri from Camera or Photo Library for further Canvas/Image manipulation
-    2. Tidy up the code
-    3. Make it closeable (un-mountable/mountable) at a runtime
-    4. Error handling
-    5. More features?
+    1. Tidy up the code
+    2. Error handling
+    3. Move styles from each element to style
+    4. More features?
 */ 
 export class CameraView extends React.Component {
     constructor() {
@@ -39,7 +38,7 @@ export class CameraView extends React.Component {
             pictureSize: undefined,
             permissionCamera: false,
             permissionGallery: false,
-            photoImg: undefined,
+            photoImg: undefined, //photo object. Props: uri, base64 (if was taken with camera), width, height
         };
     }
     __toggleCamera = () => {
@@ -66,10 +65,15 @@ export class CameraView extends React.Component {
                 aspect: [1, 1],
                 mediaTypes: 'Images',
             })
+        if (result !== undefined && !result['cancelled']) {
+            this.setState({
+                photoImg: result
+            });
+        }
     };
     __takePicture = async () => {
         if (this.camera) {
-            let photo = await this.camera.takePictureAsync( { 
+            let photo = await this.camera.takePictureAsync({ 
                 quality: 1,
                 base64: true,
                 exif: true,
@@ -78,8 +82,10 @@ export class CameraView extends React.Component {
             await this.savePicture(photo);
         }
     };
-    __closeCameraView = () => {
-        ;//to-do!
+    __closeImageView = () => {
+        this.setState({
+            photoImg: undefined
+        });
     };
     async componentWillMount() {
         const { status } = await Permissions.askAsync(Permissions.CAMERA);
@@ -90,36 +96,18 @@ export class CameraView extends React.Component {
             rotate: -photo.exif.Orientation //This fixes rotation issue on my iPhone
         }, {
             resize: {
-                width: photo.width,
-                height: photo.height
-            }
-        }, {  
-            crop: {
-            originX: 0,
-            originY: photo.height / 9,
-            width: photo.width,
-            height: photo.width
+                width: photo.width, //maybe the size of the resulting picture should be less? 
+                height: photo.width
             }
         }], {
             compress: 1,
             format: 'jpeg',
+            base64: true,
     });
-    setPermissions = async () => {
-        const { status } = await Permissions.askAsync(Permissions.CAMERA_ROLL);
-        this.setState({
-            permissionGallery: status === 'granted'
-        })
-    };
-    savePicture = async (photo) => {
-        await CameraRoll.saveToCameraRoll(photo.uri);
-        this.setState({
-            photoImg: photo.uri
-        })
-    };
     renderTopBar = () => (
         <View
         style={styles.topBar}>
-        <TouchableOpacity onPress={this.__closeCameraView}>
+        <TouchableOpacity>
             <Ionicons name="ios-close" size={40} color="white" />
         </TouchableOpacity>
         <TouchableOpacity
@@ -130,36 +118,67 @@ export class CameraView extends React.Component {
     );
     renderBottomBar = () => (
         <View
-        style={styles.bottomBar}>
-            <TouchableOpacity onPress={this.__pickImage}>
-                <Ionicons name="ios-apps" size={48} color="white" />
-            </TouchableOpacity>
-            <View style={{ flex: 1 }}>
+            style={styles.bottomBar}>
+            <View
+                style={{
+                    flex: 1,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+
+                }}>
+                <TouchableOpacity onPress={this.__pickImage}>
+                    <Ionicons name="ios-apps" size={48} color="white" />
+                </TouchableOpacity>
                 <TouchableOpacity
                 onPress={this.__takePicture}
                 style={{ alignSelf: 'center' }}
                 >
                     <Ionicons name="ios-radio-button-on" size={86} color="white" />
+                    </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={ this.__toggleCamera }>
+                    <Ionicons name="ios-reverse-camera" size={48} color="white" />
                 </TouchableOpacity>
-            </View> 
-            <TouchableOpacity
-                onPress={ this.__toggleCamera }>
-                <Ionicons name="ios-reverse-camera" size={48} color="white" />
-            </TouchableOpacity>
+            </View>
         </View>
     );
-    render() {
-        return (
-            <View style={{
-                flex: 1,
-                flexDirection: 'column',
-            }}>
-                {this.renderTopBar()}
+    renderImageOrCamera = () => {
+        if (this.state.photoImg) {
+            return (
                 <View style={{
-                    flex: 1,
-                    flexDirection: 'row',
+                    flex: 1
                 }}>
-                    <Camera 
+                    <Image
+                        style={{
+                            flex: 1
+                        }}
+                        source={{uri: this.state.photoImg.uri}}
+                    />
+                    <TouchableOpacity 
+                        style={{
+                            justifyContent: 'center',
+                            borderRadius: '50%',
+                            backgroundColor: '#212121',
+                            alignItems: 'center',
+                            width: 60,
+                            height: 30,
+                            marginTop: -40,
+                            marginLeft: '42%',
+                            
+                        }}
+                        onPress={this.__closeImageView}>
+                        <Text
+                            style={{
+                                color: 'white',
+                            }}>
+                            Close
+                        </Text>
+                    </TouchableOpacity>    
+                </View>);
+        } else {
+            return (
+                <Camera 
                     ref={ref => {
                         this.camera = ref;
                         }}
@@ -175,35 +194,61 @@ export class CameraView extends React.Component {
                     onMountError={this.handleMountError}
                     onCameraReady={this.setPermissions}
                     pictureSize={this.state.pictureSize}
-                    />
+                />);
+        }
+    };
+    render() {
+        return (
+            <View style={{
+                flex: 1,
+                flexDirection: 'column',
+                height: '100%',
+                width: '100%'
+            }}>
+                {this.renderTopBar()}
+                <View style={{
+                    flex: 0.5,
+                }}>
+                    {this.renderImageOrCamera()}
                 </View>
                 {this.renderBottomBar()}
              </View>
             );
-    }
+    };
+    setPermissions = async () => {
+        const { status } = await Permissions.askAsync(Permissions.CAMERA_ROLL);
+        this.setState({
+            permissionGallery: status === 'granted'
+        })
+    };
+    savePicture = async (photo) => {
+        await CameraRoll.saveToCameraRoll(photo.uri);
+        this.setState({
+            photoImg: photo
+        })
+    };
+    upload = async () => {
+        //await ImageMegaUpload(this.state.photoImg.uri);
+    };
 }
 
 const styles = StyleSheet.create({
-    camera: {
-      flex: 1,
-      justifyContent: 'space-between',
-    },
     topBar: {
+        flex: 0.25,
         flexDirection: 'row',
         justifyContent: 'space-between',
-        height: Platform.OS == 'ios' ? '12%' : '8%',
         marginTop: StatusBar.currentHeight,
-        alignItems: 'flex-end',
+        alignItems: 'center',
         paddingRight: 15,
         paddingBottom: 10,
         paddingLeft: 15,
         backgroundColor: 'black',
     },
     bottomBar: {
+        flex: 0.25,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        height: Platform.OS == 'ios' ? '23%' : '21%',
         backgroundColor: 'black',
         paddingLeft: 15,
         paddingRight: 15,
